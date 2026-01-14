@@ -1,0 +1,397 @@
+PE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinglish Lab - 語句重組特訓版</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel CDN for JSX compilation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .word-tile { cursor: pointer; transition: all 0.2s; }
+        .word-tile:active { transform: scale(0.95); }
+        .milestone-bounce { animation: milestone-bounce 1s ease-in-out infinite; }
+        @keyframes milestone-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- SVG 圖標組件 ---
+        function Icon({ name, className = "w-6 h-6" }) {
+            const icons = {
+                trophy: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>,
+                flame: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+                book: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>,
+                languages: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>,
+                message: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+                info: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+                check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
+                refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>,
+                chevron: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="9 18 15 12 9 6"/></svg>,
+                party: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14 21a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/><path d="m14 14 7 7"/><path d="m14 14-7-7"/></svg>
+            };
+            return icons[name] || null;
+        }
+
+        // --- 分類標籤組件 ---
+        function CategoryBadge({ category }) {
+            return (
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700">
+                    {category}
+                </span>
+            );
+        }
+
+        const quizData = [
+            // 第一階段 (1-23)
+            { id: 1, chinese: "這個告示牌告訴大家不要亂丟垃圾。", natural: "The sign reminds the public not to litter.", category: "動詞與結構", analysis: "1. 英文告示牌「提醒」人用 remind。 2. 否定不定詞結構：remind someone NOT TO do something。", explanation: "中文說「叫人不要」，英文必須用 not to + V 的結構，不可直接接 don't。" },
+            { id: 2, chinese: "菜單上寫著這道菜很辣。", natural: "The menu says this dish is spicy.", category: "物當主詞", analysis: "書本、標語、菜單在英文中「說話」是用 says。", explanation: "除非是在描述寫字的「動作」，否則表達內容時一律用 says 或 reads。" },
+            { id: 3, chinese: "醫生建議我要多休息。", natural: "The doctor suggested that I rest more.", category: "建議句型", analysis: "Suggest 後面不可接 to V，需接 that 子句或 V-ing。", explanation: "這題要特別注意 word bank 中是否有 that。" },
+            { id: 4, chinese: "老師要求我們準時交作業。", natural: "The teacher requested us to submit homework on time.", category: "不定詞結構", analysis: "Request/Require 某人做某事，必須加 to。", explanation: "記住 V + Obj + to + V 的結構。" },
+            { id: 5, chinese: "標籤上標示著『僅限乾洗』。", natural: "The label reads 'Dry Clean Only'.", category: "物當主詞", analysis: "標籤、儀器「讀起來是」用 read。", explanation: "Read 不只是閱讀，也可以指文字呈現的內容。" },
+            { id: 6, chinese: "電子郵件通知我面試的時間。", natural: "The email informed me of the interview time.", category: "察覺 vs 告知", analysis: "Notice 是察覺。電子郵件「告知」你，應使用 inform 或 notify。", explanation: "中文『通知』在英文有『我看到』和『它告訴我』的差別。" },
+            { id: 7, chinese: "我看到他的臉色，發現他不高興。", natural: "I saw his face and noticed he was unhappy.", category: "察覺 vs 告知", analysis: "是你『察覺』到他的情緒。應用 notice。", explanation: "Notice 常用於感官觀察後的發現。" },
+            { id: 8, chinese: "這條法律禁止人們在這裡抽菸。", natural: "This law forbids people from smoking here.", category: "動詞搭配", analysis: "Forbid 某人做某事，常用 from doing。", explanation: "中文直譯會漏掉介系詞 from。" },
+            { id: 9, chinese: "鬧鐘提醒我該起床了。", natural: "The alarm reminded me to wake up.", category: "提醒 vs 察覺", analysis: "鬧鐘的作用是提醒 (remind)。", explanation: "選擇能表達動作功能功能的動詞。" },
+            { id: 10, chinese: "這張照片讓我想起童年。", natural: "This photo reminds me of my childhood.", category: "使役與聯想", analysis: "英文用 remind someone of something 表達讓我想起。", explanation: "不要只會用 make me remember，remind of 更地道。" },
+            { id: 11, chinese: "這則新聞讓我感到很震驚。", natural: "The news shocked me.", category: "簡潔動詞", analysis: "英文常直接把心理動詞當成動作。", explanation: "直接說 The news shocked me 比用 make me feel 更強。" },
+            { id: 12, chinese: "收據證明了我已經付過錢。", natural: "The receipt proves that I have paid.", category: "證明", analysis: "表達事實證明，用 prove 更精確。", explanation: "根據語境選擇更具權威性的動詞。" },
+            { id: 13, chinese: "這份合約要求房客支付押金。", natural: "The contract requires the tenant to pay a deposit.", category: "法律要求", analysis: "法律合約的強制要求，首選 require + Obj + to V。", explanation: "Request 比較像禮貌請求。" },
+            { id: 14, chinese: "廣告邀請我們參加活動。", natural: "The advertisement invited us to join the event.", category: "不定詞結構", analysis: "Invite someone to do something。", explanation: "漏掉 to 是中文使用者常見錯誤。" },
+            { id: 15, chinese: "研究指出運動對大腦有益。", natural: "The research indicates that exercise is good for the brain.", category: "學術搭配", analysis: "顯示研究結果，學術語境常用 indicate。", explanation: "Point out 通常用於人指正某個事實。" },
+            { id: 16, chinese: "時鐘現在顯示午夜十二點。", natural: "The clock reads midnight.", category: "物當主詞", analysis: "時鐘顯示時間，英文特愛用 read。", explanation: "這是中文完全不會聯想到的搭配詞。" },
+            { id: 17, chinese: "這項政策防止了員工過勞。", natural: "This policy prevents employees from overworking.", category: "防止句型", analysis: "中文說『不讓...』，英文用 prevent from doing 更專業。", explanation: "不要什麼都用 let。" },
+            { id: 18, chinese: "文章討論了氣候變遷。", natural: "The article discusses climate change.", category: "正式討論", analysis: "文章書籍探討主題，用 discuss 比 talk 正式。", explanation: "Talk 偏向口語對話。" },
+            { id: 19, chinese: "地圖顯示我們在哪裡。", natural: "The map shows where we are.", category: "顯示", analysis: "地圖是視覺媒介，用呈現 (show)。", explanation: "根據媒介性質選擇動詞。" },
+            { id: 20, chinese: "手冊解釋了如何使用產品。", natural: "The manual explains how to use the product.", category: "解釋", analysis: "手冊的功能是解釋 (explain)。", explanation: "Explain 強動步驟與細節的說明。" },
+            { id: 21, chinese: "媽媽叫我不要太晚回家。", natural: "Mom told me not to come home too late.", category: "不定詞結構", analysis: "否定不定詞結構：not to + V。", explanation: "否定詞 not 必須放在 to 的前面。" },
+            { id: 22, chinese: "警察命令他不要動。", natural: "The police ordered him not to move.", category: "不定詞結構", analysis: "命令某人不做某事：not to + V。", explanation: "這是一個正式指令，結構必須精確。" },
+            { id: 23, chinese: "醫生叮囑病人不要抽菸。", natural: "The doctor advised the patient not to smoke.", category: "不定詞結構", analysis: "勸告或叮囑後的否定動作，用 not to 橋接。", explanation: "這是 ESL 寫作中極高頻的結構。" },
+
+            // 第二階段 (24-43)
+            { id: 24, chinese: "報紙報導說經濟正在好轉。", natural: "The newspaper says the economy is improving.", category: "物當主詞", analysis: "新聞紙本常用 says。", explanation: "避免直譯 reports。" },
+            { id: 25, chinese: "這部電影講述了一個關於友誼的故事。", natural: "The movie tells a story about friendship.", category: "物當主詞", analysis: "電影、故事講述內容用 tells。", explanation: "不要用 talks about。" },
+            { id: 26, chinese: "說明書解釋了這台機器如何運作。", natural: "The manual explains how the machine works.", category: "功能解釋", analysis: "Explain 強調運作的解釋。", explanation: "比 manual tells 更專業。" },
+            { id: 27, chinese: "他建議不要去參加那場派對。", natural: "He suggested not going to the party.", category: "建議句型", analysis: "Suggest 否定句直接加 not V-ing。", explanation: "不要用 suggested me not to go。" },
+            { id: 28, chinese: "安全帽能防止你頭部受傷。", natural: "Helmets prevent you from getting head injuries.", category: "防止句型", analysis: "Prevent someone from V-ing。", explanation: "介系詞 from 不可少。" },
+            { id: 29, chinese: "標誌警告游泳者不要進入水域。", natural: "The sign warns swimmers not to enter the water.", category: "警告句型", analysis: "Warn someone not to do something。", explanation: "結構與 tell not to 相同。" },
+            { id: 30, chinese: "日曆提醒我今天要開會。", natural: "The calendar reminds me of the meeting today.", category: "提醒句型", analysis: "Remind someone of something。", explanation: "想起具體名詞要加 of。" },
+            { id: 31, chinese: "他勸告我不要買那台車。", natural: "He advised me not to buy that car.", category: "勸告句型", analysis: "Advise someone not to do something。", explanation: "否定用 not to。" },
+            { id: 32, chinese: "請儘快回覆我的問題。", natural: "Please reply to my question as soon as possible.", category: "動詞搭配", analysis: "Reply 後面接對象一定要加 to。", explanation: "最常忘記 to 的搭配。" },
+            { id: 33, chinese: "我喜歡在早上聽廣播。", natural: "I like to listen to the radio in the morning.", category: "動詞搭配", analysis: "Listen 永遠要接 to。", explanation: "聽音樂、廣播都要 to。" },
+            { id: 34, chinese: "那部悲傷的電影讓他很難過。", natural: "The sad movie depressed him.", category: "簡潔動詞", analysis: "用一個動詞表達情緒轉換。", explanation: "道地用法常用及物動詞。" },
+            { id: 35, chinese: "欄杆能阻止你跌倒。", natural: "The railing stops you from falling down.", category: "防止句型", analysis: "Stop someone from V-ing。", explanation: "與 Prevent 相似。" },
+            { id: 36, chinese: "管理員警告遊客不要餵食動物。", natural: "The keeper warned the visitors not to feed the animals.", category: "否定指令", analysis: "否定不定詞 not to 的運用。", explanation: "not 永遠在 to 前面。" },
+            { id: 37, chinese: "圖書館員要求我們不要大聲說話。", natural: "The librarian asked us not to speak loudly.", category: "否定指令", analysis: "Ask someone not to do something。", explanation: "禮貌的否定要求。" },
+            { id: 38, chinese: "告示牌指示駕駛人不要在此停車。", natural: "The sign instructs drivers not to park here.", category: "否定指令", analysis: "Instruct 結構依然是 not to V。", explanation: "正式指令用法。" },
+            { id: 39, chinese: "老師教導學生不要浪費紙張。", natural: "Teachers teach students not to waste paper.", category: "否定指令", analysis: "Teach someone not to do something。", explanation: "教育內容也用此結構。" },
+            { id: 40, chinese: "醫生建議不要喝太多咖啡。", natural: "The doctor suggested not drinking too much coffee.", category: "建議句型", analysis: "Suggest 直接加 not V-ing。", explanation: "精簡表達方式。" },
+            { id: 41, chinese: "博物館請求參觀者不要拍照。", natural: "The museum requested visitors not to take photos.", category: "否定指令", analysis: "Request 結構與命令相同。", explanation: "正式請求用法。" },
+            { id: 42, chinese: "圍欄禁止人們進入這片草地。", natural: "The fence forbids people from entering the field.", category: "防止句型", analysis: "Forbid someone from V-ing。", explanation: "強烈的禁止。" },
+            { id: 43, chinese: "地圖顯示我們迷路了。", natural: "The map indicates that we are lost.", category: "顯示句型", analysis: "Indicate 與圖表搭配更正式。", explanation: "比 map shows 更專業。" },
+
+            // 第三階段 (44-63)
+            { id: 44, chinese: "媽媽建議不要在外面吃晚餐。", natural: "Mom suggested not eating dinner out.", category: "建議句型", analysis: "Suggest 後接否定動作的精簡結構。", explanation: "不用 suggest us not to。" },
+            { id: 45, chinese: "研究發現充足的睡眠非常重要。", natural: "The study found that enough sleep is important.", category: "學術描述", analysis: "研究發現事實用 found that。", explanation: "學術報告標準起手式。" },
+            { id: 46, chinese: "這本書描述了他的童年生活。", natural: "The book describes his childhood life.", category: "物當主詞", analysis: "describe 比 says 更具文學感。", explanation: "內容性質決定動詞。" },
+            { id: 47, chinese: "他的話讓我感到壓力很大。", natural: "His words stressed me.", category: "簡潔動詞", analysis: "stress 當及物動詞。", explanation: "道地英文常用心理動詞。" },
+            { id: 48, chinese: "警察阻止那個人逃跑。", natural: "The police stopped the man from escaping.", category: "防止句型", analysis: "Stop someone from doing something。", explanation: "介系詞 from 是靈魂。" },
+            { id: 49, chinese: "老闆要求員工不要上班遲到。", natural: "The boss requires employees not to be late.", category: "否定指令", analysis: "Require + Obj + not to + V。", explanation: "商務常見指令。" },
+            { id: 50, chinese: "這張地圖揭露了秘密路徑。", natural: "The map reveals the secret path.", category: "顯示句型", analysis: "reveal 取代 shows。", explanation: "暗示隱藏資訊被呈現。" },
+            { id: 51, chinese: "教練叮囑球員不要放棄。", natural: "The coach urged the players not to give up.", category: "否定指令", analysis: "Urge 表達更強烈情感。", explanation: "否定結構維持 not to。" },
+            { id: 52, chinese: "那場比賽讓我精疲力竭。", natural: "The game exhausted me.", category: "簡潔動詞", analysis: "Exhaust 比 make me very tired 更精準。", explanation: "強而有力的單一動詞。" },
+            { id: 53, chinese: "信上說他下週會到訪。", natural: "The letter says he will visit next week.", category: "物當主詞", analysis: "信件、訊息一律用 says。", explanation: "賦予文字媒介說話能力。" },
+            { id: 54, chinese: "告示牌標示著『油漆未乾』。", natural: "The sign reads 'Wet Paint'.", category: "物當主詞", analysis: "Read 表達標示精確內容。", explanation: "細緻的道地語感。" },
+            { id: 55, chinese: "我建議不要在那間公司投資。", natural: "I suggest not investing in that company.", category: "建議句型", analysis: "Suggest doing 是最保險結構。", explanation: "避開 suggested you to 錯誤。" },
+            { id: 56, chinese: "這份報告強調了潛在的風險。", natural: "The report highlights the potential risks.", category: "學術描述", analysis: "Highlight 是報告受歡迎動詞。", explanation: "增加專業度。" },
+            { id: 57, chinese: "媽媽禁止我在客廳吃東西。", natural: "Mom forbids me from eating in the living room.", category: "防止句型", analysis: "Forbid 強調權威性禁止。", explanation: "搭配 from 結構。" },
+            { id: 58, chinese: "導遊提醒遊客不要脫離隊伍。", natural: "The guide reminded the tourists not to leave the group.", category: "否定指令", analysis: "Remind 結構注意語序。", explanation: "溫馨提醒也要 not to。" },
+            { id: 59, chinese: "那則笑話讓我大笑不止。", natural: "The joke made me laugh uncontrollably.", category: "使役動詞", analysis: "Make someone V (不帶 to)。", explanation: "使役動詞不接 to。" },
+            { id: 60, chinese: "說明書展示了如何組裝桌子。", natural: "The instructions show how to assemble the table.", category: "功能解釋", analysis: "Show 用於視覺化步驟。", explanation: "與 explain 略有不同。" },
+            { id: 61, chinese: "法律限制人們不要在此打獵。", natural: "The law prohibits people from hunting here.", category: "防止句型", analysis: "Prohibit 後接 from V-ing。", explanation: "法律動詞多搭配 from。" },
+            { id: 62, chinese: "朋友勸我不要輕易辭職。", natural: "My friend advised me not to resign easily.", category: "否定指令", analysis: "Advise 的否定用法。", explanation: "Not 永遠在 to 之前。" },
+            { id: 63, chinese: "這個按鈕能防止機器過熱。", natural: "This button prevents the machine from overheating.", category: "防止句型", analysis: "Prevent + Obj + from V-ing。", explanation: "硬體功能的道地句法。" }
+        ];
+
+        function shuffle(array) {
+            return [...array].sort(() => Math.random() - 0.5);
+        }
+
+        function App() {
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [selectedWords, setSelectedWords] = useState([]);
+            const [availableWords, setAvailableWords] = useState([]);
+            const [showResult, setShowResult] = useState(false);
+            const [isCorrect, setIsCorrect] = useState(false);
+            const [completed, setCompleted] = useState([]);
+            const [score, setScore] = useState(0);
+            const [streak, setStreak] = useState(0);
+            const [isFinished, setIsFinished] = useState(false);
+            const [showMilestone, setShowMilestone] = useState(false);
+
+            const currentTask = quizData[currentIndex];
+
+            useEffect(() => {
+                const words = currentTask.natural.replace(/[.;,']/g, '').split(' ');
+                setAvailableWords(shuffle(words.map((w, i) => ({ text: w, id: i }))));
+                setSelectedWords([]);
+                setShowResult(false);
+            }, [currentIndex]);
+
+            const handlePickWord = (word) => {
+                if (showResult) return;
+                setSelectedWords([...selectedWords, word]);
+                setAvailableWords(availableWords.filter(w => w.id !== word.id));
+            };
+
+            const handleRemoveWord = (word) => {
+                if (showResult) return;
+                setAvailableWords([...availableWords, word]);
+                setSelectedWords(selectedWords.filter(w => w.id !== word.id));
+            };
+
+            const checkAnswer = () => {
+                const finalSentence = selectedWords.map(w => w.text).join(' ').toLowerCase();
+                const targetSentence = currentTask.natural.replace(/[.;,']/g, '').toLowerCase();
+                const correct = finalSentence === targetSentence;
+                setIsCorrect(correct);
+                setShowResult(true);
+
+                if (correct) {
+                    setScore(s => s + 100 + (streak * 10));
+                    setStreak(s => s + 1);
+                } else {
+                    setStreak(0);
+                }
+
+                if (!completed.includes(currentTask.id)) {
+                    setCompleted([...completed, currentTask.id]);
+                }
+            };
+
+            const nextTask = () => {
+                const nextIndex = currentIndex + 1;
+                
+                // 檢查是否達成 10 題里程碑
+                if (nextIndex % 10 === 0 && nextIndex < quizData.length) {
+                    setShowMilestone(true);
+                } else if (nextIndex >= quizData.length) {
+                    setIsFinished(true);
+                } else {
+                    setCurrentIndex(nextIndex);
+                }
+            };
+
+            const reset = () => {
+                setCurrentIndex(0);
+                setScore(0);
+                setStreak(0);
+                setCompleted([]);
+                setIsFinished(false);
+                setShowMilestone(false);
+            };
+
+            const handleContinue = () => {
+                setShowMilestone(false);
+                setCurrentIndex(currentIndex + 1);
+            };
+
+            const handleStop = () => {
+                setIsFinished(true);
+                setShowMilestone(false);
+            };
+
+            if (isFinished) return (
+                <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                    <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 text-center border border-slate-100 animate-in zoom-in-95">
+                        <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><Icon name="party" className="w-12 h-12 text-yellow-600" /></div>
+                        <h1 className="text-3xl font-black text-slate-800 mb-2 text-indigo-900">特訓總結</h1>
+                        <p className="mb-6 text-slate-500 font-medium tracking-tight">你已掌握了 {completed.length} 個英文核心邏輯！</p>
+                        <div className="bg-indigo-50 rounded-[2rem] p-8 mb-8 border border-indigo-100">
+                            <div className="text-xs text-indigo-400 font-black uppercase mb-2 tracking-widest">FINAL SCORE</div>
+                            <div className="text-6xl font-black text-indigo-600 mb-4">{score}</div>
+                            <div className="flex items-center justify-center gap-2 text-indigo-800 font-bold bg-white/60 py-2 px-4 rounded-full inline-flex">
+                                <Icon name="trophy" className="w-4 h-4 text-yellow-500" />
+                                語言除錯專家
+                            </div>
+                        </div>
+                        <button onClick={reset} className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-105 transition-all"><Icon name="refresh" /> 重新開始挑戰</button>
+                    </div>
+                </div>
+            );
+
+            if (showMilestone) return (
+                <div className="min-h-screen bg-indigo-600 flex items-center justify-center p-4">
+                    <div className="max-w-md w-full bg-white rounded-[3rem] shadow-2xl p-10 text-center animate-in slide-in-from-bottom-10 duration-700">
+                        <div className="milestone-bounce inline-block mb-6">
+                            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center shadow-lg">
+                                <Icon name="trophy" className="w-12 h-12 text-orange-500" />
+                            </div>
+                        </div>
+                        <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">太棒了！</h2>
+                        <p className="text-slate-600 mb-8 leading-relaxed">
+                            你已經連續克服了 <span className="font-black text-indigo-600 text-xl">{currentIndex + 1}</span> 個直譯陷阱。<br/>
+                            你的大腦正在建立更道地的英文迴路！
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-10">
+                            <div className="bg-slate-50 p-4 rounded-2xl">
+                                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">目前得分</span>
+                                <span className="text-2xl font-black text-indigo-600">{score}</span>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl">
+                                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">連勝紀錄</span>
+                                <span className="text-2xl font-black text-orange-500 flex items-center justify-center gap-1">
+                                    <Icon name="flame" className="w-5 h-5 fill-orange-500" />{streak}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <button 
+                                onClick={handleContinue} 
+                                className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+                            >
+                                挑戰下一個 10 題 <Icon name="chevron" />
+                            </button>
+                            <button 
+                                onClick={handleStop} 
+                                className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
+                            >
+                                休息一下，結束挑戰
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+                    <div className="max-w-3xl mx-auto">
+                        <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-4 bg-indigo-600 rounded-[1.2rem] shadow-xl text-white rotate-3"><Icon name="book" /></div>
+                                <div><h1 className="text-2xl font-black text-slate-900 leading-tight">Chinglish Lab</h1><p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">語句重組深度特訓</p></div>
+                            </div>
+                            <div className="bg-white px-6 py-3 rounded-[1.5rem] shadow-sm border border-slate-200 flex items-center gap-5">
+                                <div className="text-right"><span className="text-[9px] text-slate-400 font-black block uppercase">Score</span><span className="text-2xl font-black text-slate-800 tabular-nums">{score}</span></div>
+                                <div className="w-px h-10 bg-slate-100"></div>
+                                <div className="text-right"><span className="text-[9px] text-slate-400 font-black block uppercase">Streak</span><div className="flex items-center gap-1"><Icon name="flame" className={`w-5 h-5 ${streak > 0 ? 'text-orange-500 fill-orange-500 animate-pulse' : 'text-slate-200'}`} /><span className="text-2xl font-black text-slate-800 tabular-nums">{streak}</span></div></div>
+                            </div>
+                        </header>
+
+                        <main className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
+                            <div className="p-8 md:p-12">
+                                <div className="flex justify-between items-center mb-10">
+                                    <CategoryBadge category={currentTask.category} />
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Case {currentIndex + 1} / {quizData.length}</div>
+                                </div>
+                                
+                                <div className="mb-10 relative">
+                                    <div className="absolute -left-2 top-0 bottom-0 w-2 bg-indigo-600 rounded-full"></div>
+                                    <label className="text-[10px] font-black text-indigo-500 uppercase px-5 mb-3 flex items-center gap-2">
+                                        <Icon name="languages" className="w-4 h-4" /> 中文語境
+                                    </label>
+                                    <div className="text-3xl font-black text-slate-800 px-5 leading-tight">
+                                        「{currentTask.chinese}」
+                                    </div>
+                                </div>
+
+                                <div className="mb-8">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase block px-3 mb-4 text-center">拼湊出正確的英文句型：</label>
+                                    <div className="min-h-[140px] p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-wrap gap-3 items-center justify-center content-center shadow-inner relative">
+                                        {selectedWords.length === 0 && <span className="text-slate-300 italic text-sm absolute">點擊下方單字...</span>}
+                                        {selectedWords.map((word) => (
+                                            <button
+                                                key={`selected-${word.id}`}
+                                                onClick={() => handleRemoveWord(word)}
+                                                className="px-5 py-2.5 bg-white rounded-2xl shadow-md border border-indigo-100 text-indigo-700 font-bold hover:bg-red-50 hover:text-red-500 transition-colors animate-in fade-in"
+                                            >
+                                                {word.text}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {!showResult && (
+                                    <div className="mb-10">
+                                        <div className="flex flex-wrap gap-3 justify-center">
+                                            {availableWords.map((word) => (
+                                                <button
+                                                    key={`available-${word.id}`}
+                                                    onClick={() => handlePickWord(word)}
+                                                    className="px-6 py-3 bg-indigo-50 hover:bg-indigo-100 rounded-2xl text-indigo-700 font-bold border border-indigo-200 shadow-sm transition-all active:scale-90"
+                                                >
+                                                    {word.text}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {showResult && (
+                                    <div className="animate-in fade-in slide-in-from-bottom-5 duration-500 space-y-8">
+                                        <div className={`p-8 rounded-[2rem] border-2 flex items-center gap-6 ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div className={`p-4 rounded-2xl text-white ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+                                                <Icon name={isCorrect ? "check" : "refresh"} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className={`text-xs font-black uppercase mb-1 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {isCorrect ? "邏輯完全正確！" : "語序有點問題"}
+                                                </div>
+                                                <div className="text-lg font-bold text-slate-800 leading-tight">
+                                                    {isCorrect ? `"${currentTask.natural}"` : "請檢查 not 與 to 的位置，或是動詞後方是否需要 that。"}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {isCorrect ? (
+                                            <div className="bg-amber-50 rounded-[2.5rem] p-10 border border-amber-100 shadow-inner border border-amber-200/50">
+                                                <div className="flex items-center gap-3 mb-6"><Icon name="message" className="w-7 h-7 text-amber-600" /><h3 className="font-black text-amber-950 text-xl text-amber-900">邏輯解密</h3></div>
+                                                <p className="text-amber-900 leading-relaxed mb-8 text-lg font-medium opacity-90">{currentTask.analysis}</p>
+                                                <div className="bg-white p-6 rounded-2xl border border-amber-200 shadow-sm"><p className="text-amber-800 text-base italic leading-relaxed">💡 {currentTask.explanation}</p></div>
+                                            </div>
+                                        ) : (
+                                            <button onClick={() => { setShowResult(false); setSelectedWords([]); setAvailableWords(shuffle(currentTask.natural.replace(/[.;,']/g, '').split(' ').map((w, i) => ({ text: w, id: i })))); }} className="w-full py-5 bg-slate-800 text-white font-bold rounded-2xl shadow-xl hover:bg-black transition-all">重試此題</button>
+                                        )}
+
+                                        {isCorrect && (
+                                            <button onClick={nextTask} className="w-full py-6 bg-indigo-600 text-white font-black rounded-[2rem] flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-xl">
+                                                {currentIndex === quizData.length - 1 ? "查看最終成果" : "下一步"} <Icon name="chevron" />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!showResult && (
+                                    <button 
+                                        disabled={selectedWords.length === 0}
+                                        onClick={checkAnswer} 
+                                        className={`w-full py-6 font-black rounded-[2rem] shadow-xl flex items-center justify-center gap-3 text-lg transition-all ${selectedWords.length > 0 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
+                                    >
+                                        檢查語法結構 <Icon name="check" className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                        </main>
+                        <footer className="mt-12 text-center text-slate-300 text-[10px] font-black uppercase tracking-widest pb-8">Designed for Error-Free Logic Training</footer>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
